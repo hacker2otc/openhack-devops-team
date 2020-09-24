@@ -3,6 +3,11 @@
 declare -i duration=1
 declare hasUrl=""
 declare endpoint
+declare expctrspns=200 ##expected response 
+declare cntrspns=0 ##response counter
+declare thrshld=5 ##response counter threshold
+declare cntrtimer=0 ##timeout counter
+declare timeout=10 ##timeout threshold
 
 usage() {
     cat <<END
@@ -47,6 +52,7 @@ healthcheck() {
     echo $result
 }
 
+echo "expected response:" $expctrspns "with timeout:" $timeout "secs"
 while [[ true ]]; do
    result=`healthcheck $endpoint` 
    declare status
@@ -54,12 +60,18 @@ while [[ true ]]; do
       status="N/A"
    else
       status=${result:9:3}
-   fi 
-   timestamp=$(date "+%Y%m%d-%H%M%S")
-   if [[ -z $hasUrl ]]; then
-     echo "$timestamp | $status "
-   else
-     echo "$timestamp | $status | $endpoint " 
-   fi 
+   fi
+   if [[ $status == $expctrspns ]]; then
+      ((cntrspns=cntrspns+1))
+   fi
+   if [[ $cntrspns -gt $thrshld ]]; then
+      echo "success!"
+      exit 0
+   fi
+   if [[ $cntrtimer -gt $timeout ]]; then
+      echo "error!"
+      exit 1
+   fi
+   ((cntrtimer=cntrtimer+1))
    sleep $duration
 done
